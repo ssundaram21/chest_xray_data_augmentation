@@ -38,10 +38,10 @@ def load_data(path):
     # replace the paths for the dataset here
     d_chex_train = xrv.datasets.CheX_Dataset(imgpath=path,
                                        csvpath=path + "train_preprocessed.csv",
-                                       transform=transform, views=["PA", "AP"])
+                                       transform=transform, views=["PA", "AP"], unique_patients=False)
     d_chex_valid = xrv.datasets.CheX_Dataset(imgpath=path,
                                        csvpath=path + "valid_preprocessed.csv",
-                                       transform=transform, views=["PA", "AP"])
+                                       transform=transform, views=["PA", "AP"], unique_patients=False)
     return d_chex_train, d_chex_valid
 
 def get_model():
@@ -82,8 +82,9 @@ def training(model, num_epochs, path_trained_model, train_loader, valid_loader,l
         count = 0
         for data_all in train_loader:
             count += 1
-            if count % 100 == 0:
-                print("Count {}",format(count))
+            # if count % 100 == 0:
+            #     print("Count {}".format(count))
+            #     sys.stdout.flush()
             data = data_all['img']
             target = data_all['lab']
             data = data.to("cuda:0")
@@ -144,8 +145,8 @@ def testing(model, test_loader, nnClassCount, class_names, output_path, model_id
     # print(nnClassCount)
     # print(class_names)
 
-    print()
-    print("targets")
+    # print()
+    # print("targets")
     with torch.no_grad():
         for batch_idx, data_all in tqdm(enumerate(test_loader)):
             if batch_idx % 100 == 0:
@@ -153,8 +154,8 @@ def testing(model, test_loader, nnClassCount, class_names, output_path, model_id
 
             data = data_all['img']
             target = data_all['lab']
-            print(target.shape)
-            print(target)
+            # print(target.shape)
+            # print(target)
             target = target.cuda()
             data = data.to("cuda:0")
             outGT = torch.cat((outGT, target), 0).cuda()
@@ -165,13 +166,13 @@ def testing(model, test_loader, nnClassCount, class_names, output_path, model_id
             out = model(data)
             outPRED = torch.cat((outPRED, out), 0)
 
-    print(outPRED.shape, "outpred")
-    print(outGT.shape, "outgt")
+    # print(outPRED.shape, "outpred")
+    # print(outGT.shape, "outgt")
     aurocIndividual = computeAUROC(outGT, outPRED, nnClassCount)
     aurocMean = np.array(aurocIndividual).mean()
 
-    print(len(aurocIndividual))
-    print(aurocIndividual)
+    # print(len(aurocIndividual))
+    # print(aurocIndividual)
 
     print('AUROC mean ', aurocMean)
     sys.stdout.flush()

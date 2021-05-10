@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH -c 4
-#SBATCH --array=0
+#SBATCH --array=2-3
 #SBATCH --job-name=training
 #SBATCH --mem=25GB
 #SBATCH -t 24:00:00

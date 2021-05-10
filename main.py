@@ -63,7 +63,7 @@ elif user == "neha":
     output_path = "/local/nhulkund/UROP/6.819FinalProjectRAMP/outputs"
 else:
     raise Exception("Invalid user")
-train, datasetTest = load_data(data_path)
+train, dataset_blind_test = load_data(data_path)
 
 params = {}
 model_id = 1
@@ -88,19 +88,19 @@ else:
     optimizer = model_params["optimizer"]
 
 
-split = 0.1
+split = 0.05
 val_length = int(split * len(train))
-datasetVal, datasetTrain = random_split(train, [val_length, len(train) - val_length])
-dataLoaderTrain = DataLoader(dataset=datasetTrain, batch_size=batch_size, shuffle=True,  num_workers=24, pin_memory=True)
-dataLoaderVal = DataLoader(dataset=datasetVal, batch_size=batch_size, shuffle=False, num_workers=24, pin_memory=True)
-dataLoaderTest = DataLoader(dataset=datasetTest, batch_size=batch_size, num_workers=24, pin_memory=True)
+datasetTest, datasetVal, datasetTrain = random_split(train, [val_length, val_length, len(train) - 2*val_length])
+dataLoaderTrain = DataLoader(dataset=datasetTrain, batch_size=batch_size, shuffle=True,  num_workers=3, pin_memory=True)
+dataLoaderVal = DataLoader(dataset=datasetVal, batch_size=batch_size, shuffle=False, num_workers=3, pin_memory=True)
+dataLoaderTest = DataLoader(dataset=datasetTest, batch_size=batch_size, num_workers=3, pin_memory=True)
 
 
 model = get_model()
 
 training(
     model=model,
-    num_epochs=2,
+    num_epochs=10,
     path_trained_model="models/densenet_model_{}".format(idx),
     train_loader=dataLoaderTrain,
     valid_loader=dataLoaderVal
