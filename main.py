@@ -63,7 +63,8 @@ elif user == "neha":
     output_path = "/local/nhulkund/UROP/6.819FinalProjectRAMP/outputs"
 else:
     raise Exception("Invalid user")
-train, dataset_blind_test = load_data(data_path)
+
+dataset_full_train, dataset_test = load_data(data_path)
 
 params = {}
 model_id = 1
@@ -89,11 +90,11 @@ else:
 
 
 split = 0.05
-val_length = int(split * len(train))
-datasetTest, datasetVal, datasetTrain = random_split(train, [val_length, val_length, len(train) - 2*val_length])
-dataLoaderTrain = DataLoader(dataset=datasetTrain, batch_size=batch_size, shuffle=True,  num_workers=3, pin_memory=True)
-dataLoaderVal = DataLoader(dataset=datasetVal, batch_size=batch_size, shuffle=False, num_workers=3, pin_memory=True)
-dataLoaderTest = DataLoader(dataset=datasetTest, batch_size=batch_size, num_workers=3, pin_memory=True)
+val_length = int(split * len(dataset_full_train))
+dataset_val, dataset_train = random_split(dataset_full_train, [val_length, len(dataset_full_train) - val_length])
+dataLoaderTrain = DataLoader(dataset=dataset_train, batch_size=batch_size, shuffle=True,  num_workers=3, pin_memory=True)
+dataLoaderVal = DataLoader(dataset=dataset_val, batch_size=batch_size, shuffle=False, num_workers=3, pin_memory=True)
+dataLoaderTest = DataLoader(dataset=dataset_test, batch_size=batch_size, num_workers=3, pin_memory=True)
 
 
 model = get_model()

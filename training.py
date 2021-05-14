@@ -39,10 +39,10 @@ def load_data(path):
     d_chex_train = xrv.datasets.CheX_Dataset(imgpath=path,
                                        csvpath=path + "train_preprocessed.csv",
                                        transform=transform, views=["PA", "AP"], unique_patients=False)
-    d_chex_valid = xrv.datasets.CheX_Dataset(imgpath=path,
-                                       csvpath=path + "valid_preprocessed.csv",
+    d_chex_test = xrv.datasets.CheX_Dataset(imgpath=path,
+                                       csvpath=path + "test_train_preprocessed.csv",
                                        transform=transform, views=["PA", "AP"], unique_patients=False)
-    return d_chex_train, d_chex_valid
+    return d_chex_train, d_chex_test
 
 def get_model():
     model = xrv.models.DenseNet(num_classes=13)
