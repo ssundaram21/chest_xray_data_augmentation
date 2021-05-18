@@ -31,13 +31,22 @@ import pandas as pd
 
 use_gpu = torch.cuda.is_available()
 
-def load_data(path):
+
+def load_data(path, dataset_size, with_gan=False):
     # add data augmentations transforms here
+    TRAIN_WITH_GAN_FILENAME = "train_preprocessed_subset_{}_with_gan.csv".format(dataset_size)
+    TRAIN_WITHOUT_GAN_FILENAME = "train_preprocessed_subset_{}.csv".format(dataset_size)
+
     transform = torchvision.transforms.Compose([xrv.datasets.XRayCenterCrop(),
                                                 xrv.datasets.XRayResizer(224)])
     # replace the paths for the dataset here
+    train_filename = TRAIN_WITH_GAN_FILENAME if with_gan else TRAIN_WITHOUT_GAN_FILENAME
+
+    print("\nUsing labels: {}".format(train_filename))
+    sys.stdout.flush()
+
     d_chex_train = xrv.datasets.CheX_Dataset(imgpath=path,
-                                       csvpath=path + "train_preprocessed.csv",
+                                       csvpath=path + train_filename,
                                        transform=transform, views=["PA", "AP"], unique_patients=False)
     d_chex_test = xrv.datasets.CheX_Dataset(imgpath=path,
                                        csvpath=path + "test_train_preprocessed.csv",
@@ -120,6 +129,8 @@ def training(model, num_epochs, path_trained_model, train_loader, valid_loader,l
         print("Best Valid Loss so far:", best_valid_loss)
         print("Best epoch so far: ", best_epoch)
 
+    return best_valid_loss, best_epoch
+
 
 def computeAUROC(dataGT, dataPRED, classCount):
     outAUROC = []
@@ -135,7 +146,7 @@ def computeAUROC(dataGT, dataPRED, classCount):
     return outAUROC
 
 
-def testing(model, test_loader, nnClassCount, class_names, output_path, model_id):
+def testing(model, test_loader, nnClassCount, class_names):
     if use_gpu:
         outGT = torch.FloatTensor().cuda()
         outPRED = torch.FloatTensor().cuda()
@@ -182,8 +193,9 @@ def testing(model, test_loader, nnClassCount, class_names, output_path, model_id
         results[class_names[i]] = [aurocIndividual[i]]
         print(class_names[i], ' ', aurocIndividual[i])
     sys.stdout.flush()
-    results_df = pd.DataFrame(results)
-    results_df.to_csv(output_path + "auc_results_{}.csv".format(model_id), index=False)
+    return results
+    # results_df = pd.DataFrame(results)
+    # results_df.to_csv(output_path + "auc_results_{}.csv".format(model_id), index=False)
 
-    return outGT, outPRED
+    # return outGT, outPRED
 
