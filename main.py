@@ -50,27 +50,46 @@ else:
 parser = argparse.ArgumentParser()
 parser.add_argument('--idx', type=int, required=True)
 parser.add_argument('--user', type=str, required=True)
+parser.add_argument('--datasetsplit',type=int, required=True)
 FLAGS = parser.parse_args()
 
 idx = FLAGS.idx
 user = FLAGS.user
+datasetsplit=FLAGS.datasetsplit
 
 if user == "shobhita":
     data_path = "/om/user/shobhita/src/chexpert/data/CheXpert-v1.0-small/"
     output_path = "/om/user/shobhita/src/chexpert/output/"
 elif user == "neha":
-    data_path = "/local/nhulkund/UROP/Chexpert/data/CheXpert-v1.0-small/train.csv"
-    output_path = "/local/nhulkund/UROP/6.819FinalProjectRAMP/outputs"
+    data_path = "/local/nhulkund/UROP/Chexpert/data/CheXpert-v1.0-small/"
+    output_path = "/local/nhulkund/UROP/6.819FinalProjectRAMP/outputs/"
 else:
     raise Exception("Invalid user")
 
-dataset_full_train, dataset_test = load_data(data_path)
+if datasetsplit == 50:
+    train_filename = 'train_preprocessed_subset_50.csv'
+    n_epochs=15
+elif datasetsplit == 10:
+    train_filename = 'train_preprocessed_subset_10.csv'
+    n_epochs=100
+elif datasetsplit == 1:
+    train_filename = 'train_preprocessed_subset_1.csv'
+    n_epochs=40
+elif datasetsplit == 5:
+    train_filename = 'train_preprocessed_subset_5.csv'
+    n_epochs=40
+else:
+    train_filename = 'train_preprocessed.csv'
+    n_epochs=20
+test_filename = 'test_train_preprocessed.csv'
+
+dataset_full_train, dataset_test = load_data(data_path,train_filename,test_filename)
 
 params = {}
 model_id = 1
-for batch_size in [16, 32, 64]:
-    for lr in [1e-2, 0.005, 0.001]:
-        for optimizer in ["momentum", "adam"]:
+for batch_size in [8]:
+    for lr in [0.01,0.001]:
+        for optimizer in ["adam",'momentum']:
             params[model_id] = {
                 "batch_size": batch_size,
                 "lr": lr,
@@ -89,6 +108,14 @@ else:
     optimizer = model_params["optimizer"]
 
 
+logging.basicConfig(filename='/local/nhulkund/UROP/6.819FinalProjectRAMP/log/idx_{}_{}_{}.log'.format(idx,datasetsplit,'all_data_aug'), filemode='w',level=logging.DEBUG)
+
+logger1 = logging.getLogger('basic')
+logger1.info('started logging')
+if idx>0:
+    logger1.info('model params: batch_size: %d, learning_rate:%.5f, optimizer: %s' % (batch_size, learning_rate, optimizer) )
+
+
 split = 0.05
 val_length = int(split * len(dataset_full_train))
 dataset_val, dataset_train = random_split(dataset_full_train, [val_length, len(dataset_full_train) - val_length])
@@ -98,22 +125,24 @@ dataLoaderTest = DataLoader(dataset=dataset_test, batch_size=batch_size, num_wor
 
 
 model = get_model()
+model_path="models/densenet_model_{}_{}_{}".format(idx,datasetsplit,'all_data_aug')
 
 training(
     model=model,
-    num_epochs=10,
-    path_trained_model="models/densenet_model_{}".format(idx),
+    num_epochs=n_epochs,
+    path_trained_model=model_path,
     train_loader=dataLoaderTrain,
-    valid_loader=dataLoaderVal
+    valid_loader=dataLoaderVal,
+    logger=logger1
 )
-
-model.load_state_dict(torch.load("models/densenet_model_{}".format(idx)))
+model.to(device)
+model.load_state_dict(torch.load(model_path))
 
 class_names=['Enlarged Cardiomediastinum', 'Cardiomegaly',
        'Lung Opacity', 'Lung Lesion', 'Edema', 'Consolidation', 'Pneumonia',
        'Atelectasis', 'Pneumothorax', 'Pleural Effusion', 'Pleural Other',
        'Fracture', 'Support Devices']
 
-testing(model, dataLoaderTest, len(class_names), class_names, output_path, idx)
+testing(model, dataLoaderTest, len(class_names), class_names, output_path, str(idx)+"_"+str(datasetsplit))
 
 print("Done :)")

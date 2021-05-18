@@ -20,6 +20,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 from PIL import Image
 import torch.nn.functional as func
 import torchxrayvision as xrv
+from ChexpertDataset import CheX_Dataset
 from tqdm.notebook import tqdm
 
 from sklearn.metrics import roc_auc_score
@@ -27,20 +28,33 @@ import sklearn.metrics as metrics
 import random
 import logging
 import pandas as pd
+import logging
 
 
 use_gpu = torch.cuda.is_available()
 
-def load_data(path):
+def load_data(path,train_file,test_file):
     # add data augmentations transforms here
     transform = torchvision.transforms.Compose([xrv.datasets.XRayCenterCrop(),
-                                                xrv.datasets.XRayResizer(224)])
+                                                xrv.datasets.XRayResizer(224),
+                                                transforms.ToTensor()])
+    
+    data_aug = torchvision.transforms.Compose([
+                                               transforms.RandomVerticalFlip(),
+                                               #transforms.RandomErasing(p=0.5,scale=(0.1,0.3)),
+                                               transforms.RandomHorizontalFlip(),
+                                              ])
     # replace the paths for the dataset here
-    d_chex_train = xrv.datasets.CheX_Dataset(imgpath=path,
-                                       csvpath=path + "train_preprocessed.csv",
+    d_chex_no_aug = CheX_Dataset(imgpath=path,
+                                       csvpath=path + train_file,
                                        transform=transform, views=["PA", "AP"], unique_patients=False)
+    d_chex_train_aug = CheX_Dataset(imgpath=path,
+                                       csvpath=path + train_file,
+                                       transform=transform, views=["PA", "AP"], data_aug=data_aug, unique_patients=False)
+    d_chex_train = torch.utils.data.ConcatDataset([d_chex_no_aug,d_chex_train_aug])
+    print(len(d_chex_train))
     d_chex_test = xrv.datasets.CheX_Dataset(imgpath=path,
-                                       csvpath=path + "test_train_preprocessed.csv",
+                                       csvpath=path + test_file,
                                        transform=transform, views=["PA", "AP"], unique_patients=False)
     return d_chex_train, d_chex_test
 
@@ -57,8 +71,10 @@ def preprocess_data(dataset):
     return dataset
 
 
-def training(model, num_epochs, path_trained_model, train_loader, valid_loader,lr=0.001, optimizer="momentum"):
-    print("training")
+def training(model, num_epochs, path_trained_model, train_loader, logger, valid_loader,lr=0.001, optimizer="momentum"):
+    logger.info('training')
+    device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    logger.info(device)
     # hyperparameters
     criterion = nn.BCEWithLogitsLoss()
     if optimizer == "momentum":
@@ -74,21 +90,23 @@ def training(model, num_epochs, path_trained_model, train_loader, valid_loader,l
     # going through epochs
     best_epoch = 0
     for epoch in range(num_epochs):
+        logger.info('epoch'+str(epoch))
         # training loss
         print("epoch", epoch)
         model.train()
-        model.to("cuda:0")
+        model.to(device)
         train_loss = 0
         count = 0
         for data_all in train_loader:
             count += 1
-            # if count % 100 == 0:
-            #     print("Count {}".format(count))
-            #     sys.stdout.flush()
+            if count % 1000 == 0:
+                logger.info('data:'+str(count))
+                print(count)
             data = data_all['img']
+            data=data.transpose(1,2)
             target = data_all['lab']
-            data = data.to("cuda:0")
-            target = target.to("cuda:0")
+            data = data.to(device)
+            target = target.to(device)
             optimizer.zero_grad()
             output = model(data)
             loss = criterion(output, target)
@@ -102,23 +120,33 @@ def training(model, num_epochs, path_trained_model, train_loader, valid_loader,l
         with torch.no_grad():
             for data_all in valid_loader:
                 data = data_all['img']
+                data=data.transpose(1,2)
                 target = data_all['lab']
-                data = data.to("cuda:0")
-                target = target.to("cuda:0")
+                data = data.to(device)
+                target = target.to(device)
                 output = model(data)
                 loss = criterion(output, target)
                 valid_loss += loss.item()
         train_loss /= len(train_loader)
         valid_loss /= len(valid_loader)
-
+        
+        
         # saves best epoch
-        print(f'Epoch: {epoch + 1}/{num_epochs}.. Training loss: {train_loss}.. Validation Loss: {valid_loss}')
+        logger.info(f'Epoch: {epoch + 1}/{num_epochs}.. Training loss: {train_loss}.. Validation Loss: {valid_loss}')
         if valid_loss < best_valid_loss:
             best_epoch = epoch + 1
             torch.save(model.state_dict(), PATH)
             best_valid_loss = valid_loss
-        print("Best Valid Loss so far:", best_valid_loss)
-        print("Best epoch so far: ", best_epoch)
+        logger.info("Best Valid Loss so far:" + str(best_valid_loss))
+        logger.info("Best epoch so far: "+str(best_epoch))
+        
+    # checkpoints last epoch
+    torch.save({
+            'epoch': num_epochs,
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': criterion.state_dict(),
+            }, PATH+"_checkpoint.pt")
+    logger.info("done!")
 
 
 def computeAUROC(dataGT, dataPRED, classCount):
@@ -144,7 +172,7 @@ def testing(model, test_loader, nnClassCount, class_names, output_path, model_id
     # print("class count")
     # print(nnClassCount)
     # print(class_names)
-
+    device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     # print()
     # print("targets")
     with torch.no_grad():
@@ -153,11 +181,12 @@ def testing(model, test_loader, nnClassCount, class_names, output_path, model_id
                 print(batch_idx)
 
             data = data_all['img']
+            data=data.transpose(1,2)
             target = data_all['lab']
             # print(target.shape)
             # print(target)
             target = target.cuda()
-            data = data.to("cuda:0")
+            data = data.to(device)
             outGT = torch.cat((outGT, target), 0).cuda()
 
             # bs, c, h, w = data.size()
@@ -180,10 +209,10 @@ def testing(model, test_loader, nnClassCount, class_names, output_path, model_id
     results = {}
     for i in range(0, len(aurocIndividual)):
         results[class_names[i]] = [aurocIndividual[i]]
-        print(class_names[i], ' ', aurocIndividual[i])
+        logging.info(class_names[i]+" "+str(aurocIndividual[i]))
     sys.stdout.flush()
     results_df = pd.DataFrame(results)
-    results_df.to_csv(output_path + "auc_results_{}.csv".format(model_id), index=False)
+    results_df.to_csv(output_path + "auc_results_augall_{}.csv".format(model_id), index=False)
 
     return outGT, outPRED
 

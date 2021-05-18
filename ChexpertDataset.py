@@ -152,6 +152,39 @@ class CheX_Dataset(Dataset):
                 img = self.data_aug(img)
 
         return {"img":img, "lab":self.labels[idx], "idx":idx}
+    
+class XRayResizerCustom(object):
+    def __init__(self, size, engine="skimage"):
+        self.size = size
+        self.engine = engine
+        if 'cv2' in sys.modules:
+            print("Setting XRayResizer engine to cv2 could increase performance.")
+
+    def __call__(self, img):
+        if self.engine == "skimage":
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                return skimage.transform.resize(img, (1, self.size, self.size), mode='constant', preserve_range=True).astype(np.float32)
+        elif self.engine == "cv2":
+            import cv2 # pip install opencv-python
+            return cv2.resize(img[0,:,:], 
+                              (self.size, self.size), 
+                              interpolation = cv2.INTER_AREA
+                             ).reshape(1,self.size,self.size).astype(np.float32)
+        else:
+            raise Exception("Unknown engine, Must be skimage (default) or cv2.")
+
+class XRayCenterCropCustom(object):
+    
+    def crop_center(self, img):
+        _, y, x = img.shape
+        crop_size = np.min([y,x])
+        startx = x // 2 - (crop_size // 2)
+        starty = y // 2 - (crop_size // 2)
+        return img[:,starty:starty + crop_size, startx:startx + crop_size]
+    
+    def __call__(self, img):
+        return self.crop_center(img)
 
 def normalize(sample, maxval):
     """Scales images to be roughly [-1024 1024]."""
@@ -188,3 +221,4 @@ def relabel_dataset(pathologies, dataset, silent=False):
     
     dataset.labels = new_labels
     dataset.pathologies = pathologies
+   
