@@ -10,11 +10,23 @@
 
 #SBATCH -D ./log/
 
-cd /om/user/shobhita/src/chexpert/src/6.819FinalProjectRAMP
+cd /local/nhulkund/UROP/6.819FinalProjectRAMP
+export CUDA_VISIBLE_DEVICES=2
 
-hostname
-export CUDA_VISIBLE_DEVICES=0
-/om2/user/jakubk/miniconda3/envs/torch/bin/python -c 'import torch; print(torch.rand(2,3).cuda())'
+#list = {1..18}
 
-singularity exec -B /om:/om --nv /om/user/xboix/singularity/xboix-tf_fujitsu3.simg \
-python /om/user/shobhita/src/chexpert/src/6.819FinalProjectRAMP/main.py --idx=${SLURM_ARRAY_TASK_ID} --user="shobhita"
+task(){
+      python /local/nhulkund/UROP/6.819FinalProjectRAMP/main.py --idx=$1 --user="neha" --datasetsplit=1
+      python /local/nhulkund/UROP/6.819FinalProjectRAMP/main.py --idx=$1 --user="neha" --datasetsplit=10
+      python /local/nhulkund/UROP/6.819FinalProjectRAMP/main.py --idx=$1 --user="neha" --datasetsplit=50
+      python /local/nhulkund/UROP/6.819FinalProjectRAMP/main.py --idx=$1 --user="neha" --datasetsplit=100
+}
+
+#for int in {1..6}; do task "$int" & done
+for int in {2..3}
+do
+    task "$int"
+done
+
+#parallel -j0 ::::  /local/nhulkund/UROP/6.819FinalProjectRAMP/main.py --idx={1..18} --user="neha"
+

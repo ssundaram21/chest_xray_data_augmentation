@@ -45,17 +45,22 @@ def load_data(path,train_file,test_file):
                                                transforms.RandomHorizontalFlip(),
                                               ])
     # replace the paths for the dataset here
-    d_chex_no_aug = CheX_Dataset(imgpath=path,
-                                       csvpath=path + train_file,
-                                       transform=transform, views=["PA", "AP"], unique_patients=False)
-    d_chex_train_aug = CheX_Dataset(imgpath=path,
-                                       csvpath=path + train_file,
-                                       transform=transform, views=["PA", "AP"], data_aug=data_aug, unique_patients=False)
-    d_chex_train = torch.utils.data.ConcatDataset([d_chex_no_aug,d_chex_train_aug])
-    print(len(d_chex_train))
+#     d_chex_no_aug = CheX_Dataset(imgpath=path,
+#                                        csvpath=path + train_file,
+#                                        transform=transform, views=["PA", "AP"], unique_patients=False)
+#     d_chex_train_aug = CheX_Dataset(imgpath=path,
+#                                        csvpath=path + train_file,
+#                                        transform=transform, views=["PA", "AP"], data_aug=data_aug, unique_patients=False)
+#     d_chex_train = torch.utils.data.ConcatDataset([d_chex_no_aug,d_chex_train_aug])
+    d_chex_train=CheX_Dataset(imgpath=path,
+                                        csvpath=path + train_file,
+                                        transform=transform, views=["PA", "AP"], data_aug=data_aug, unique_patients=False)
+    
     d_chex_test = xrv.datasets.CheX_Dataset(imgpath=path,
                                        csvpath=path + test_file,
                                        transform=transform, views=["PA", "AP"], unique_patients=False)
+    print("train_size:"+str(len(d_chex_train)))
+    print("test_size:"+str(len(d_chex_test)))
     return d_chex_train, d_chex_test
 
 def get_model():
@@ -212,7 +217,7 @@ def testing(model, test_loader, nnClassCount, class_names, output_path, model_id
         logging.info(class_names[i]+" "+str(aurocIndividual[i]))
     sys.stdout.flush()
     results_df = pd.DataFrame(results)
-    results_df.to_csv(output_path + "auc_results_augall_{}.csv".format(model_id), index=False)
+    results_df.to_csv(output_path + "auc_results_all_data_aug_{}.csv".format(model_id), index=False)
 
     return outGT, outPRED
 

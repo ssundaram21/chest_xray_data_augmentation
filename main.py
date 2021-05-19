@@ -74,7 +74,7 @@ elif datasetsplit == 10:
     n_epochs=100
 elif datasetsplit == 1:
     train_filename = 'train_preprocessed_subset_1.csv'
-    n_epochs=40
+    n_epochs=10
 elif datasetsplit == 5:
     train_filename = 'train_preprocessed_subset_5.csv'
     n_epochs=40
@@ -87,9 +87,9 @@ dataset_full_train, dataset_test = load_data(data_path,train_filename,test_filen
 
 params = {}
 model_id = 1
-for batch_size in [8]:
-    for lr in [0.01,0.001]:
-        for optimizer in ["adam",'momentum']:
+for batch_size in [16,32]:
+    for lr in [0.001]:
+        for optimizer in ["adam"]:
             params[model_id] = {
                 "batch_size": batch_size,
                 "lr": lr,
@@ -125,7 +125,7 @@ dataLoaderTest = DataLoader(dataset=dataset_test, batch_size=batch_size, num_wor
 
 
 model = get_model()
-model_path="models/densenet_model_{}_{}_{}".format(idx,datasetsplit,'all_data_aug')
+model_path="models/densenet_model_{}_{}_{}_{}".format(idx,datasetsplit,'all_data_aug',batch_size)
 
 training(
     model=model,
