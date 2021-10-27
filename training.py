@@ -27,7 +27,7 @@ import sklearn.metrics as metrics
 import random
 import logging
 import pandas as pd
-
+import pickle
 
 use_gpu = torch.cuda.is_available()
 
@@ -66,7 +66,7 @@ def preprocess_data(dataset):
     return dataset
 
 
-def training(model, num_epochs, path_trained_model, train_loader, valid_loader,lr=0.001, optimizer="momentum"):
+def training(model, num_epochs, model_path, model_name, train_loader, valid_loader,lr=0.001, optimizer="momentum"):
     print("training")
     # hyperparameters
     criterion = nn.BCEWithLogitsLoss()
@@ -78,10 +78,13 @@ def training(model, num_epochs, path_trained_model, train_loader, valid_loader,l
         raise Exception("Invalid optimizer")
 
     best_valid_loss = 10000
-    PATH = path_trained_model
+    PATH = model_path + model_name
 
     # going through epochs
     best_epoch = 0
+
+    losses = {"val": [], "train": []}
+
     for epoch in range(num_epochs):
         # training loss
         print("epoch", epoch)
@@ -122,12 +125,17 @@ def training(model, num_epochs, path_trained_model, train_loader, valid_loader,l
 
         # saves best epoch
         print(f'Epoch: {epoch + 1}/{num_epochs}.. Training loss: {train_loss}.. Validation Loss: {valid_loss}')
+        losses['val'].append(valid_loss)
+        losses['train'].append(train_loss)
         if valid_loss < best_valid_loss:
             best_epoch = epoch + 1
             torch.save(model.state_dict(), PATH)
             best_valid_loss = valid_loss
         print("Best Valid Loss so far:", best_valid_loss)
         print("Best epoch so far: ", best_epoch)
+
+    with open(model_path + "{}_losses.pkl".format(model_name), "wb") as handle:
+        pickle.dump(losses, handle)
 
     return best_valid_loss, best_epoch
 

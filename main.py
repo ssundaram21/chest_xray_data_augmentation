@@ -46,7 +46,6 @@ if torch.cuda.is_available():
 else:
     print("WARNING: Could not find GPU! Using CPU only")
 
-
 parser = argparse.ArgumentParser()
 parser.add_argument('--idx', type=int, required=True)
 parser.add_argument('--user', type=str, required=True)
@@ -133,7 +132,8 @@ if not skip_training:
     best_valid_loss, best_epoch = training(
         model=model,
         num_epochs=10,
-        path_trained_model=model_path+model_name,
+        model_path=model_path,
+        model_name=model_name,
         train_loader=dataLoaderTrain,
         valid_loader=dataLoaderVal,
         lr=lr,
@@ -171,7 +171,7 @@ if not skip_training:
 output["params"] = model_params
 output["auc"] = auc_results
 
-with open(output_path + "{}_{}_results.pkl".format(idx, with_gan), "wb") as handle:
+with open(output_path + "{}_{}_results2.pkl".format(idx, with_gan), "wb") as handle:
     pickle.dump(output, handle)
 
 print("Done :)")
